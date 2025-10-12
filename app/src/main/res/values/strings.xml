@@ -1,3 +1,15 @@
 <resources>
-    <string name="app_name">MyApiTest - COLOQUE O SEU NOME AQUI</string>
+    <string name="app_name">CarTrack</string>
+    <string name="login_app_description">Gerencie seus veículos</string>
+    <string name="btn_login_google">Entrar com Google</string>
+    <string name="btn_login_sms">Entrar com SMS</string>
+    <string name="top_bar_sms_code_verification_title">Verificação SMS</string>
+    <string name="verification_sms_description">Enviamos um código de 6 digitos para %1$s</string>
+    <string name="verification_screen_title">Insira o código</string>
+    <string name="btn_verify_code_sms">Verificar</string>
+    <string name="top_bar_number_sms_title">Entrar com SMS</string>
+    <string name="sms_number_title">Qual o seu celular?</string>
+    <string name="btn_label_number_cell">Número de celular</string>
+    <string name="btn_send_code_desc">Receber código</string>
+    <string name="sms_number_desc">Digite seu número para receber um código de verificação.</string>
 </resources>
