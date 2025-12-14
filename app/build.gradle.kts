@@ -1,7 +1,19 @@
+import java.util.Properties
+
+fun getApiKey(keyName: String): String {
+    val localProps = Properties().apply {
+        val localPropertiesFile = rootProject.file("local.properties")
+        if (localPropertiesFile.exists()) localPropertiesFile.inputStream().use { load(it) }
+    }
+    return localProps.getProperty(keyName) ?: ""
+}
+
 plugins {
     alias(libs.plugins.android.application)
     alias(libs.plugins.kotlin.android)
     alias(libs.plugins.kotlin.compose)
+    id("com.google.devtools.ksp")
+    id("com.google.dagger.hilt.android")
 }
 
 android {
@@ -16,6 +28,10 @@ android {
         versionName = "1.0"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
+        resValue(
+            "string", "google_maps_key",
+            getApiKey("MAPS_API_KEY")
+        )
     }
 
     buildTypes {
@@ -57,4 +73,16 @@ dependencies {
     androidTestImplementation(libs.androidx.compose.ui.test.junit4)
     debugImplementation(libs.androidx.compose.ui.tooling)
     debugImplementation(libs.androidx.compose.ui.test.manifest)
+    implementation(libs.maps.compose)
+    implementation(libs.places)
+    implementation(libs.kotlinx.coroutines.play.services)
+    implementation(libs.hilt.android)
+    implementation(libs.accompanist.permissions)
+
+    implementation(platform(libs.firebase.bom))
+    implementation(libs.firebase.auth)
+    implementation(libs.androidx.credentials)
+    implementation(libs.credentials.play.services.auth)
+    implementation(libs.googleid)
+    ksp(libs.hilt.android.compiler)
 }

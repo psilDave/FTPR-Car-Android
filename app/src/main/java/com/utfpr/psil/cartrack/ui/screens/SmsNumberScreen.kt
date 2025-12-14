@@ -119,7 +119,6 @@ fun SmsNumberScreen(
                 Text(stringResource(R.string.btn_send_code_desc))
             }
         }
-
     }
 }
 
