@@ -16,23 +16,41 @@ import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.utfpr.psil.cartrack.R
+import com.utfpr.psil.cartrack.ui.model.AuthUiEvents
+import com.utfpr.psil.cartrack.ui.viewmodels.AuthViewModel
 
 @Composable
 fun LoginScreen(
-    onGoogleLogin: () -> Unit = {},
+    authViewModel: AuthViewModel,
+    onSuccessfullyLoginOnGoogle: () -> Unit = {},
     onSmsLogin: () -> Unit = {}
 ) {
+
+    val context = LocalContext.current
+    val authUiEvents by authViewModel.uiAuthEvents.collectAsState()
+
+
+    LaunchedEffect(authUiEvents) {
+        when (authUiEvents) {
+            is AuthUiEvents.Success -> onSuccessfullyLoginOnGoogle()
+            else -> {}
+        }
+    }
+
     Column(
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.Center,
@@ -59,7 +77,9 @@ fun LoginScreen(
         LoginButton(
             buttonDescription = R.string.btn_login_google,
             icon = R.drawable.ic_google_login,
-            onClick = onGoogleLogin,
+            onClick = {
+                authViewModel.loginWithGoogle(context)
+            },
             buttonColors = ButtonColors(
                 containerColor = Color.White,
                 contentColor = Color.Black,
@@ -108,10 +128,4 @@ private fun LoginButton(
             Text(stringResource(buttonDescription))
         }
     }
-}
-
-@Composable
-@Preview(showBackground = true)
-fun LoginScreenPreview() {
-    LoginScreen()
 }

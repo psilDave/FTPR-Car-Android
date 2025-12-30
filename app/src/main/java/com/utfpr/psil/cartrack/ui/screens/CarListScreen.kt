@@ -20,15 +20,18 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.tooling.preview.Preview
+import androidx.compose.ui.platform.LocalContext
 import com.utfpr.psil.cartrack.ui.components.CarListItem
+import com.utfpr.psil.cartrack.ui.viewmodels.AuthViewModel
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun CarListScreen(
+    authViewModel: AuthViewModel,
     onLogoutButtonPress: () -> Unit,
     onAddNewCarButtonPress: () -> Unit
 ) {
+    val context = LocalContext.current
 
     Scaffold(
         topBar = {
@@ -40,7 +43,12 @@ fun CarListScreen(
                         horizontalArrangement = Arrangement.Center
                     ) {
                         Text("SAIR")
-                        IconButton(onClick = onLogoutButtonPress) {
+                        IconButton(
+                            onClick = {
+                                authViewModel.signOut(context)
+                                onLogoutButtonPress()
+                            }
+                        ) {
                             Icon(Icons.AutoMirrored.Filled.ExitToApp, contentDescription = null)
                         }
                     }
@@ -82,10 +90,4 @@ fun CarListScreen(
             }
         }
     }
-}
-
-@Composable
-@Preview(showBackground = true)
-fun CarListScreenPreview() {
-    CarListScreen({}, {})
 }

@@ -27,9 +27,9 @@ import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarColors
-import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -48,19 +48,30 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.input.TextFieldValue
 import androidx.compose.ui.text.style.TextAlign
-import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import com.utfpr.psil.cartrack.R
+import com.utfpr.psil.cartrack.ui.model.AuthUiEvents
+import com.utfpr.psil.cartrack.ui.viewmodels.AuthViewModel
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun SmsCodeVerificationScreen(
-    phoneNumber: String,
+    authViewModel: AuthViewModel,
     onBackButtonPress: () -> Unit,
-    onVerifyClick: (String) -> Unit
+    onSuccessfulVerification: () -> Unit
 ) {
+    val authUiState by authViewModel.uiAuthState.collectAsState()
+    val authUiEvents by authViewModel.uiAuthEvents.collectAsState()
+
     var code by remember { mutableStateOf("") }
     var isCodeComplete by remember { mutableStateOf(false) }
+
+    LaunchedEffect(authUiEvents) {
+        when (authUiEvents) {
+            is AuthUiEvents.Success -> onSuccessfulVerification()
+            else -> {}
+        }
+    }
 
     Scaffold(
         topBar = {
@@ -93,7 +104,7 @@ fun SmsCodeVerificationScreen(
             verticalArrangement = Arrangement.Center
         ) {
             SmsCodeInput(
-                phoneNumber,
+                authUiState.phoneNumber.toString(),
                 onCodeChange = { newCode, isCompleted ->
                     code = newCode
                     isCodeComplete = isCompleted
@@ -101,7 +112,9 @@ fun SmsCodeVerificationScreen(
             )
             Spacer(Modifier.height(32.dp))
             Button(
-                onClick = { onVerifyClick(code) },
+                onClick = {
+                    authViewModel.verifyCode(authUiState.verificationId, code)
+                },
                 enabled = isCodeComplete,
                 modifier = Modifier.fillMaxWidth(),
                 shape = RoundedCornerShape(8.dp),
@@ -232,16 +245,6 @@ fun DigitInput(
                 innerTextField()
             }
         }
-    )
-}
-
-@Preview(showBackground = true)
-@Composable
-fun SmsCodeVerificationScreenPreview() {
-    SmsCodeVerificationScreen(
-        phoneNumber = "+5511999999999",
-        onBackButtonPress = {},
-        onVerifyClick = {}
     )
 }
 

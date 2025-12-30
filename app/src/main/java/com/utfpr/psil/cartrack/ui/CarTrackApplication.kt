@@ -12,5 +12,4 @@ class CarTrackApplication : Application() {
         super.onCreate()
         Places.initialize(applicationContext, getString(R.string.google_maps_key))
     }
-
 }

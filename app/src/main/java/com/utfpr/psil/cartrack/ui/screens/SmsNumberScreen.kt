@@ -1,5 +1,6 @@
 package com.utfpr.psil.cartrack.ui.screens
 
+import androidx.activity.compose.LocalActivity
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
@@ -31,20 +32,23 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.style.TextAlign
-import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import com.utfpr.psil.cartrack.R
 import com.utfpr.psil.cartrack.ui.utils.PhoneNumberVisualTransformation
 import com.utfpr.psil.cartrack.ui.utils.PhoneNumberVisualTransformation.Companion.PHONE_NUMBER_LENGTH
+import com.utfpr.psil.cartrack.ui.viewmodels.AuthViewModel
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun SmsNumberScreen(
-    onSendCodeClick: (String) -> Unit,
+    authViewModel: AuthViewModel,
+    onSendCodeClick: () -> Unit,
     onBackButtonPress: () -> Unit
 ) {
     var phoneNumber by remember { mutableStateOf("") }
     val isPhoneNumberValid = phoneNumber.length == PHONE_NUMBER_LENGTH
+
+    val activity = LocalActivity.current
 
     Scaffold(
         topBar = {
@@ -103,7 +107,10 @@ fun SmsNumberScreen(
 
             )
             Button(
-                onClick = { onSendCodeClick(phoneNumber) },
+                onClick = {
+                    authViewModel.sendVerificationCode(phoneNumber, activity)
+                    onSendCodeClick()
+                },
                 enabled = isPhoneNumberValid,
                 modifier = Modifier
                     .fillMaxWidth()
@@ -120,10 +127,4 @@ fun SmsNumberScreen(
             }
         }
     }
-}
-
-@Preview(showBackground = true)
-@Composable
-fun SmsNumberScreenPreview() {
-    SmsNumberScreen(onSendCodeClick = {}, onBackButtonPress = {})
 }

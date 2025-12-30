@@ -1,6 +1,7 @@
 package com.utfpr.psil.cartrack.di
 
 import android.content.Context
+import com.utfpr.psil.cartrack.data.datasources.AuthDataSource
 import com.utfpr.psil.cartrack.data.datasources.GooglePlaceDataSourceImpl
 import com.utfpr.psil.cartrack.data.datasources.PlaceDataSource
 import dagger.Module
@@ -19,4 +20,7 @@ object DataModule {
     fun providesGooglePlaceDataSource(@ApplicationContext context: Context): PlaceDataSource =
         GooglePlaceDataSourceImpl(context)
 
+    @Provides
+    @Singleton
+    fun providesAuthDataSource(): AuthDataSource = AuthDataSource()
 }
