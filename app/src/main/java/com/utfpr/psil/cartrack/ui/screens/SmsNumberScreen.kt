@@ -3,9 +3,14 @@ package com.utfpr.psil.cartrack.ui.screens
 import androidx.activity.compose.LocalActivity
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.statusBars
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
@@ -35,7 +40,6 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import com.utfpr.psil.cartrack.R
 import com.utfpr.psil.cartrack.ui.utils.PhoneNumberVisualTransformation
-import com.utfpr.psil.cartrack.ui.utils.PhoneNumberVisualTransformation.Companion.PHONE_NUMBER_LENGTH
 import com.utfpr.psil.cartrack.ui.viewmodels.AuthViewModel
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -45,14 +49,17 @@ fun SmsNumberScreen(
     onSendCodeClick: () -> Unit,
     onBackButtonPress: () -> Unit
 ) {
+    var countryCode by remember { mutableStateOf("55") }
     var phoneNumber by remember { mutableStateOf("") }
-    val isPhoneNumberValid = phoneNumber.length == PHONE_NUMBER_LENGTH
+    val isPhoneNumberValid = phoneNumber.length in 10..11
+
 
     val activity = LocalActivity.current
 
     Scaffold(
         topBar = {
             TopAppBar(
+                windowInsets = WindowInsets.statusBars,
                 title = { Text(stringResource(R.string.top_bar_number_sms_title)) },
                 navigationIcon = {
                     IconButton(onClick = onBackButtonPress) {
@@ -92,23 +99,37 @@ fun SmsNumberScreen(
                 color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f),
                 textAlign = TextAlign.Center
             )
-            OutlinedTextField(
-                value = phoneNumber,
-                onValueChange = { newNumber ->
-                    if (newNumber.all { it.isDigit() } && newNumber.length <= PHONE_NUMBER_LENGTH) {
-                        phoneNumber = newNumber
-                    }
-                },
-                label = { Text(stringResource(R.string.btn_label_number_cell)) },
-                singleLine = true,
-                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Phone),
-                visualTransformation = PhoneNumberVisualTransformation(),
-                modifier = Modifier.fillMaxWidth()
-
-            )
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                OutlinedTextField(
+                    value = countryCode,
+                    onValueChange = {
+                        if (it.length <= 3) countryCode = it.filter { c -> c.isDigit() }
+                    },
+                    label = { Text("DDI") },
+                    prefix = { Text("+") },
+                    modifier = Modifier.width(90.dp),
+                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number)
+                )
+                Spacer(modifier = Modifier.width(8.dp))
+                OutlinedTextField(
+                    value = phoneNumber,
+                    onValueChange = { newNumber ->
+                        if (newNumber.all { it.isDigit() } && newNumber.length <= 11) {
+                            phoneNumber = newNumber
+                        }
+                    },
+                    label = { Text(stringResource(R.string.btn_label_number_cell)) },
+                    visualTransformation = PhoneNumberVisualTransformation(),
+                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Phone),
+                    modifier = Modifier.weight(1f)
+                )
+            }
             Button(
                 onClick = {
-                    authViewModel.sendVerificationCode(phoneNumber, activity)
+                    authViewModel.sendVerificationCode(countryCode, phoneNumber, activity)
                     onSendCodeClick()
                 },
                 enabled = isPhoneNumberValid,

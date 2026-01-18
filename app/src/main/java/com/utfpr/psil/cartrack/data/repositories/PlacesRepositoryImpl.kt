@@ -15,4 +15,8 @@ class PlacesRepositoryImpl @Inject constructor(private val placeDataSource: Plac
     override suspend fun getCoordinatesForPlace(placeId: String): LatLng? {
         return placeDataSource.fetchPlaceDetails(placeId)
     }
+
+    override suspend fun getAddressFromCoordinates(lat: Double, long: Double): String? {
+        return placeDataSource.fetchAddressFromCoordinates(lat, long)
+    }
 }

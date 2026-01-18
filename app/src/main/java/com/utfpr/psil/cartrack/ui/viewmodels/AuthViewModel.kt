@@ -8,7 +8,9 @@ import androidx.credentials.CredentialManager
 import androidx.credentials.CustomCredential
 import androidx.credentials.GetCredentialRequest
 import androidx.credentials.exceptions.ClearCredentialException
+import androidx.credentials.exceptions.GetCredentialCancellationException
 import androidx.credentials.exceptions.GetCredentialException
+import androidx.credentials.exceptions.NoCredentialException
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.google.android.libraries.identity.googleid.GetGoogleIdOption
@@ -61,10 +63,11 @@ class AuthViewModel @Inject constructor(private val authRepository: AuthReposito
         }.launchIn(viewModelScope)
     }
 
-    fun sendVerificationCode(phoneNumber: String, activity: Activity?) {
+    fun sendVerificationCode(countryCode: String, phoneNumber: String, activity: Activity?) {
+        val fullNumber = "+$countryCode$phoneNumber"
         _uiAuthEvents.update { AuthUiEvents.Loading }
-        _uiAuthState.update { it.copy(phoneNumber = phoneNumber) }
-        authRepository.sendCode(phoneNumber, activity)
+        _uiAuthState.update { it.copy(phoneNumber = fullNumber) }
+        authRepository.sendCode(fullNumber, activity)
     }
 
     fun verifyCode(verificationId: String?, code: String) = viewModelScope.launch {
@@ -89,11 +92,13 @@ class AuthViewModel @Inject constructor(private val authRepository: AuthReposito
     }
 
     fun loginWithGoogle(context: Context) = viewModelScope.launch {
+        _uiAuthEvents.update { AuthUiEvents.Loading }
         val credentialManager = CredentialManager.create(context)
 
         val googleIdOption = GetGoogleIdOption.Builder()
             .setServerClientId(context.getString(R.string.default_web_client_id))
             .setFilterByAuthorizedAccounts(false)
+            .setAutoSelectEnabled(false)
             .build()
 
         val request = GetCredentialRequest.Builder()
@@ -123,18 +128,33 @@ class AuthViewModel @Inject constructor(private val authRepository: AuthReposito
                             )
                         }
                     },
-                    onFailure = {
-
+                    onFailure = { e ->
+                        _uiAuthEvents.update {
+                            AuthUiEvents.Error(
+                                e.localizedMessage ?: "Erro ao autenticar com Google"
+                            )
+                        }
                     }
                 )
 
             } else {
-                _uiAuthEvents.update { AuthUiEvents.Error("Unexpected credential type") }
+                _uiAuthEvents.update { AuthUiEvents.Error("Erro ao autenticar com Google") }
             }
         } catch (e: GetCredentialException) {
-            _uiAuthEvents.update { AuthUiEvents.Error(e.message ?: "User cancelled sign-in") }
+            Log.e("AuthViewModel", "Google Login Error: ${e.localizedMessage}", e)
+            val errorMessage = when (e) {
+                is GetCredentialCancellationException -> "Login cancelado pelo usuário"
+                is NoCredentialException -> "Nenhuma conta Google encontrada no dispositivo"
+                else -> e.localizedMessage ?: "Erro ao recuperar credenciais"
+            }
+            _uiAuthEvents.update { AuthUiEvents.Error(errorMessage) }
         } catch (e: Exception) {
-            _uiAuthEvents.update { AuthUiEvents.Error(e.message ?: "An unknown error occurred") }
+            Log.e("AuthViewModel", "Unknown Google Login Error", e)
+            _uiAuthEvents.update {
+                AuthUiEvents.Error(
+                    e.localizedMessage ?: "Erro ao autenticar com Google"
+                )
+            }
         }
     }
 
@@ -152,7 +172,8 @@ class AuthViewModel @Inject constructor(private val authRepository: AuthReposito
             }
         }
     }
+
+    fun resetEvents() {
+        _uiAuthEvents.update { AuthUiEvents.Idle }
+    }
 }
-
-
-

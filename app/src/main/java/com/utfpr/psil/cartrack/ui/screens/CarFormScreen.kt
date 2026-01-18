@@ -1,14 +1,20 @@
 package com.utfpr.psil.cartrack.ui.screens
 
 import android.Manifest
+import android.net.Uri
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.annotation.StringRes
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.statusBars
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
@@ -16,6 +22,7 @@ import androidx.compose.material.icons.automirrored.filled.KeyboardArrowLeft
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.ExposedDropdownMenuBox
@@ -26,6 +33,8 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.MenuAnchorType
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.SnackbarHost
+import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarColors
@@ -33,6 +42,9 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
@@ -42,6 +54,7 @@ import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
+import androidx.hilt.navigation.compose.hiltViewModel
 import coil.compose.AsyncImage
 import com.google.accompanist.permissions.ExperimentalPermissionsApi
 import com.google.accompanist.permissions.rememberMultiplePermissionsState
@@ -50,32 +63,34 @@ import com.google.maps.android.compose.GoogleMap
 import com.google.maps.android.compose.MapProperties
 import com.google.maps.android.compose.Marker
 import com.google.maps.android.compose.rememberCameraPositionState
-import com.google.maps.android.compose.rememberMarkerState
 import com.google.maps.android.compose.rememberUpdatedMarkerState
 import com.utfpr.psil.cartrack.R
-import com.utfpr.psil.cartrack.ui.utils.carFormViewModel
 import com.utfpr.psil.cartrack.ui.viewmodels.CarFormViewModel
 
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalPermissionsApi::class)
 @Composable
 fun CarFormScreen(
-    @StringRes title: Int,
-    @StringRes bottomButtonText: Int,
-    onBackButtonPress: () -> Unit,
-    viewModel: CarFormViewModel
+    @StringRes title: Int, @StringRes bottomButtonText: Int, onBackButtonPress: () -> Unit
 ) {
+    var tempPhotoUri by remember { mutableStateOf<Uri>(Uri.EMPTY) }
+
+    val context = LocalContext.current
+    val viewModel: CarFormViewModel = hiltViewModel()
 
     val uiState by viewModel.uiState.collectAsState()
+    val snackbarHostState = remember { SnackbarHostState() }
 
-    val locationPermissionRequest = rememberMultiplePermissionsState(
+    val permissionRequests = rememberMultiplePermissionsState(
         listOf(
             Manifest.permission.ACCESS_FINE_LOCATION,
-            Manifest.permission.ACCESS_COARSE_LOCATION
+            Manifest.permission.ACCESS_COARSE_LOCATION,
+            Manifest.permission.CAMERA
         )
     )
     LaunchedEffect(Unit) {
-        if (!locationPermissionRequest.allPermissionsGranted) locationPermissionRequest
-            .launchMultiplePermissionRequest()
+        if (!permissionRequests.allPermissionsGranted) {
+            permissionRequests.launchMultiplePermissionRequest()
+        }
     }
 
     val cameraPositionState = rememberCameraPositionState()
@@ -88,50 +103,75 @@ fun CarFormScreen(
     }
     val isSuggestionBoxExpanded = uiState.addressSuggestions.isNotEmpty()
 
-    Scaffold(
-        topBar = {
-            TopAppBar(
-                title = { Text(stringResource(title)) },
-                navigationIcon = {
-                    IconButton(onClick = onBackButtonPress) {
-                        Icon(
-                            imageVector = Icons.AutoMirrored.Filled.KeyboardArrowLeft,
-                            contentDescription = null
-                        )
-                    }
-                },
-                colors = TopAppBarColors(
-                    containerColor = Color(0xff1e1f57),
-                    titleContentColor = Color.White,
-                    actionIconContentColor = Color.White,
-                    scrolledContainerColor = Color(0xff1e1f57),
-                    navigationIconContentColor = Color.White
-                )
-            )
-        },
-        bottomBar = {
-            Box(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(start = 16.dp, end = 16.dp, bottom = 16.dp)
-            ) {
-                Button(
-                    onClick = { /* TODO: Adicionar lógica para salvar */ },
-                    modifier = Modifier.fillMaxWidth(),
-                    shape = MaterialTheme.shapes.small,
-                    colors = ButtonDefaults.buttonColors(
-                        containerColor = Color(0xff1e1f57),
-                        contentColor = Color.White
+    val cameraLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.TakePicture(), onResult = { success ->
+            if (success && tempPhotoUri != Uri.EMPTY) {
+                viewModel.onPhotoCaptured(context, tempPhotoUri)
+            }
+        }
+    )
+
+    LaunchedEffect(uiState.errorMessage) {
+        uiState.errorMessage?.let { message ->
+            snackbarHostState.showSnackbar(message)
+            viewModel.clearErrorMessage()
+        }
+    }
+
+    LaunchedEffect(uiState.isSuccess) {
+        if (uiState.isSuccess) {
+            onBackButtonPress()
+        }
+    }
+
+    Scaffold(snackbarHost = { SnackbarHost(snackbarHostState) }, topBar = {
+        TopAppBar(
+            windowInsets = WindowInsets.statusBars,
+            title = { Text(stringResource(title)) },
+            navigationIcon = {
+                IconButton(onClick = onBackButtonPress) {
+                    Icon(
+                        imageVector = Icons.AutoMirrored.Filled.KeyboardArrowLeft,
+                        contentDescription = null
                     )
-                ) {
+                }
+            },
+            colors = TopAppBarColors(
+                containerColor = Color(0xff1e1f57),
+                titleContentColor = Color.White,
+                actionIconContentColor = Color.White,
+                scrolledContainerColor = Color(0xff1e1f57),
+                navigationIconContentColor = Color.White
+            )
+        )
+    }, bottomBar = {
+        Box(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(start = 16.dp, end = 16.dp, bottom = 16.dp)
+        ) {
+            Button(
+                onClick = { viewModel.onSaveCar() },
+                enabled = !uiState.isLoading,
+                modifier = Modifier.fillMaxWidth(),
+                shape = MaterialTheme.shapes.small,
+                colors = ButtonDefaults.buttonColors(
+                    containerColor = Color(0xff1e1f57), contentColor = Color.White
+                )
+            ) {
+                if (uiState.isLoading) {
+                    CircularProgressIndicator(
+                        color = Color.White, modifier = Modifier.size(24.dp)
+                    )
+                } else {
                     Text(
                         text = stringResource(bottomButtonText),
-                        modifier = Modifier.padding(vertical = 8.dp) // Aumenta a altura do botão
+                        modifier = Modifier.padding(vertical = 8.dp)
                     )
                 }
             }
         }
-    ) { innerPadding ->
+    }) { innerPadding ->
         Column(
             modifier = Modifier
                 .padding(innerPadding)
@@ -147,26 +187,29 @@ fun CarFormScreen(
                     .height(200.dp)
             ) {
                 Box(
-                    modifier = Modifier.fillMaxSize(),
-                    contentAlignment = Alignment.Center
+                    modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center
                 ) {
                     AsyncImage(
-                        model = "",
+                        model = uiState.photoBitmap ?: uiState.imageUrl,
                         contentDescription = null,
                         placeholder = painterResource(R.drawable.ic_no_photo),
-                        contentScale = ContentScale.Fit,
+                        contentScale = ContentScale.Crop,
+                        modifier = Modifier.fillMaxSize()
                     )
                     Button(
                         modifier = Modifier
                             .align(Alignment.BottomEnd)
                             .padding(end = 16.dp, bottom = 16.dp),
-                        onClick = { },
-                        shape = MaterialTheme.shapes.small,
-                        colors = ButtonDefaults.buttonColors(
-                            containerColor = Color.White,
-                            contentColor = Color(0xff1e1f57)
-                        ),
-                        content = {
+                        onClick = {
+                            if (permissionRequests.allPermissionsGranted) {
+                                tempPhotoUri = viewModel.createPhotUri(context)
+                                cameraLauncher.launch(tempPhotoUri)
+                            } else {
+                                permissionRequests.launchMultiplePermissionRequest()
+                            }
+                        }, shape = MaterialTheme.shapes.small, colors = ButtonDefaults.buttonColors(
+                            containerColor = Color.White, contentColor = Color(0xff1e1f57)
+                        ), content = {
                             Row(
                                 verticalAlignment = Alignment.CenterVertically
                             ) {
@@ -177,53 +220,46 @@ fun CarFormScreen(
                                 )
                                 Text("Tirar Foto")
                             }
-                        }
-                    )
+                        })
                 }
             }
 
             OutlinedTextField(
-                modifier =
-                    Modifier
-                        .fillMaxWidth()
-                        .padding(top = 16.dp),
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(top = 16.dp),
                 value = uiState.carName,
                 onValueChange = { viewModel.onCarNameChange(it) },
                 label = { Text(stringResource(R.string.label_tf_car_name)) },
             )
 
             OutlinedTextField(
-                modifier =
-                    Modifier
-                        .fillMaxWidth()
-                        .padding(top = 16.dp),
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(top = 16.dp),
                 value = uiState.carYear,
                 onValueChange = { viewModel.onCarYearChange(it) },
                 label = { Text(stringResource(R.string.label_tf_car_year)) },
             )
 
             OutlinedTextField(
-                modifier =
-                    Modifier
-                        .fillMaxWidth()
-                        .padding(top = 16.dp),
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(top = 16.dp),
                 value = uiState.carPlate,
                 onValueChange = { viewModel.onCarPlateChange(it) },
                 label = { Text(stringResource(R.string.label_tf_car_plate)) },
             )
 
             ExposedDropdownMenuBox(
-                expanded = isSuggestionBoxExpanded,
-                onExpandedChange = {
+                expanded = isSuggestionBoxExpanded, onExpandedChange = {
                     if (!it) viewModel.onDismissSuggestions()
-                }
-            ) {
+                }) {
                 OutlinedTextField(
-                    modifier =
-                        Modifier
-                            .fillMaxWidth()
-                            .padding(top = 16.dp)
-                            .menuAnchor(MenuAnchorType.PrimaryEditable, enabled = false),
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(top = 16.dp)
+                        .menuAnchor(MenuAnchorType.PrimaryEditable, enabled = false),
                     value = uiState.addressInput,
                     onValueChange = { newText ->
                         viewModel.onAddressInputChange(newText)
@@ -250,8 +286,7 @@ fun CarFormScreen(
                                     contentPadding = ExposedDropdownMenuDefaults.ItemContentPadding
                                 )
                             }
-                        }
-                    )
+                        })
                 }
             }
 
@@ -264,8 +299,10 @@ fun CarFormScreen(
                 GoogleMap(
                     modifier = Modifier.fillMaxSize(),
                     cameraPositionState = cameraPositionState,
-                    properties = MapProperties(isMyLocationEnabled = true)
-                ){
+                    properties = MapProperties(
+                        isMyLocationEnabled = permissionRequests.allPermissionsGranted
+                    )
+                ) {
                     uiState.selectedCoordinates?.let { coordinates ->
                         val markerState = rememberUpdatedMarkerState(position = coordinates)
                         Marker(
@@ -285,8 +322,7 @@ fun CarFormScreenAddPreview() {
     CarFormScreen(
         title = R.string.car_form_add_title_top_bar,
         onBackButtonPress = {},
-        bottomButtonText = R.string.btn_label_add_car,
-        viewModel = carFormViewModel(LocalContext.current)
+        bottomButtonText = R.string.btn_label_add_car
     )
 }
 
@@ -296,7 +332,6 @@ fun CarFormScreenEditPreview() {
     CarFormScreen(
         title = R.string.car_form_edit_title_top_bar,
         onBackButtonPress = {},
-        bottomButtonText = R.string.btn_label_edit_car,
-        viewModel = carFormViewModel(LocalContext.current)
+        bottomButtonText = R.string.btn_label_edit_car
     )
 }

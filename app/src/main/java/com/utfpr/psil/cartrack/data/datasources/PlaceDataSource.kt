@@ -6,4 +6,5 @@ import com.utfpr.psil.cartrack.ui.model.PlaceSuggestion
 interface PlaceDataSource {
     suspend fun getAutocompletePredictions(query: String): List<PlaceSuggestion>
     suspend fun fetchPlaceDetails(placeId: String): LatLng?
+    suspend fun fetchAddressFromCoordinates(lat: Double, long: Double): String?
 }

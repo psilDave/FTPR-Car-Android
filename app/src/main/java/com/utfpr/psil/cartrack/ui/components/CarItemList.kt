@@ -54,7 +54,6 @@ fun CarListItem(
             modifier = Modifier.padding(12.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
-            // Imagem do carro à esquerda
             AsyncImage(
                 model = imageUrl,
                 contentDescription = null,
